@@ -14,15 +14,13 @@ import RPC from "./ethersRPC";
 // IMP END - Blockchain Calls
 
 // IMP START - Dashboard Registration
-// const clientId = "BIpw3vwP0QqF_QecEtEFYxEac6pW7i478ouMUwg-qiWp8ipe-OkD6FUabv99lG0iVO02GWd591bJeiYiM1Sl_Nc"; // SAPPHIRE_DEVNET
-// const clientId = "BId-ta7y72kd_PJb8gYRyQ2IA9KOlBia4-8Ab9MisZQz1X5ClMHlUZdyPxSBNHhpO2YkGNrKzAgw7uGDZBOy9Io"; // SAPPHIRE_MAINNET
-const clientId = "BId-ta7y72kd_PJb8gYRyQ2IA9KOlBia4-8Ab9MisZQz1X5ClMHlUZdyPxSBNHhpO2YkGNrKzAgw7uGDZBOy9Io"; // get from https://dashboard.web3auth.io
+const clientId = "BHgArYmWwSeq21czpcarYh0EVq2WWOzflX-NTK-tY1-1pauPzHKRRLgpABkmYiIV_og9jAvoIxQ8L3Smrwe04Lw"; // get from https://dashboard.web3auth.io
 // IMP END - Dashboard Registration
 
 // IMP START - SDK Initialization
 const web3auth = new Web3Auth({
   clientId,
-  web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET, // SAPPHIRE_MAINNET, SAPPHIRE_DEVNET
+  web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET, // SAPPHIRE_MAINNET, SAPPHIRE_DEVNET
   authBuildEnv: "testing",
 });
 // IMP END - SDK Initialization
