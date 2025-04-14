@@ -1,75 +1,33 @@
+/* eslint-disable no-console */
 import { useEffect, useState } from "react";
-import { Web3AuthNoModal } from "@web3auth/no-modal";
-import { WALLET_ADAPTERS, IProvider, WEB3AUTH_NETWORK, UX_MODE, getEvmChainConfig } from "@web3auth/base";
-import { AuthAdapter } from "@web3auth/auth-adapter";
-import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import "./App.css";
 
+// Import Web3Auth packages
+import { Web3AuthNoModal, IProvider, WEB3AUTH_NETWORK, WALLET_CONNECTORS, authConnector, AUTH_CONNECTION } from "@web3auth/no-modal";
+
+// Import RPC handlers
 //import RPC from "./web3RPC"; // for using web3.js
 // import RPC from './ethersRPC' // for using ethers.js
 import RPC from "./viemRPC"; // for using viem
 
+// Clientid from Web3Auth Dashboard
 const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw4tsluTITPqA8zMsfxIKMjiqNQ"; // get from https://dashboard.web3auth.io
 
+// Initialize Web3Auth
+const web3auth = new Web3AuthNoModal({
+  clientId,
+  web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET,
+  authBuildEnv: "testing",
+  connectors: [authConnector()],
+});
+
 function App() {
-  const [web3auth, setWeb3auth] = useState<Web3AuthNoModal | null>(null);
   const [provider, setProvider] = useState<IProvider | null>(null);
-  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  const [loggedIn, setLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
     const init = async () => {
       try {
-        // Get custom chain configs for your chain from https://web3auth.io/docs/connect-blockchain
-        const chainConfig = getEvmChainConfig(0x13882, clientId)!;
-
-        const privateKeyProvider = new EthereumPrivateKeyProvider({ config: { chainConfig } });
-
-        const web3auth = new Web3AuthNoModal({
-          clientId,
-          web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET,
-          privateKeyProvider,
-        });
-
-        const authAdapter = new AuthAdapter({
-          loginSettings: {
-            mfaLevel: "optional",
-          },
-          adapterSettings: {
-            uxMode: UX_MODE.REDIRECT,
-            loginConfig: {
-              jwt: {
-                verifier: "w3a-auth0-demo",
-                typeOfLogin: "jwt",
-                clientId: "hUVVf4SEsZT7syOiL0gLU9hFEtm2gQ6O",
-              },
-            },
-            mfaSettings: {
-              deviceShareFactor: {
-                enable: true,
-                priority: 1,
-                mandatory: true,
-              },
-              backUpShareFactor: {
-                enable: true,
-                priority: 2,
-                mandatory: false,
-              },
-              socialBackupFactor: {
-                enable: true,
-                priority: 3,
-                mandatory: false,
-              },
-              passwordFactor: {
-                enable: true,
-                priority: 4,
-                mandatory: true,
-              },
-            },
-          },
-        });
-        web3auth.configureAdapter(authAdapter);
-        setWeb3auth(web3auth);
-
         await web3auth.init();
         setProvider(web3auth.provider);
 
@@ -85,19 +43,23 @@ function App() {
   }, []);
 
   const login = async () => {
-    if (!web3auth) {
-      uiConsole("web3auth not initialized yet");
-      return;
+    try {
+      const web3authProvider = await web3auth.connectTo(WALLET_CONNECTORS.AUTH, {
+        authConnection: AUTH_CONNECTION.CUSTOM,
+        authConnectionId: "w3a-auth0-demo",
+        extraLoginOptions: {
+          domain: "https://web3auth.au.auth0.com",
+          userIdField: "email",
+          // connection: "google-oauth2", // Use this to skip Auth0 Modal for Google login.
+        },
+      });
+      setProvider(web3authProvider);
+      if (web3auth.connected) {
+        setLoggedIn(true);
+      }
+    } catch (error) {
+      console.error(error);
     }
-    const web3authProvider = await web3auth.connectTo(WALLET_ADAPTERS.AUTH, {
-      loginProvider: "jwt",
-      extraLoginOptions: {
-        domain: "https://web3auth.au.auth0.com",
-        verifierIdField: "email",
-        // connection: "google-oauth2", // Use this to skip Auth0 Modal for Google login.
-      },
-    });
-    setProvider(web3authProvider);
   };
 
   const authenticateUser = async () => {
@@ -126,6 +88,7 @@ function App() {
     await web3auth.logout();
     setLoggedIn(false);
     setProvider(null);
+    uiConsole("logged out");
   };
 
   const getChainId = async () => {
@@ -137,6 +100,7 @@ function App() {
     const chainId = await rpc.getChainId();
     uiConsole(chainId);
   };
+
   const getAccounts = async () => {
     if (!provider) {
       uiConsole("provider not initialized yet");
@@ -162,6 +126,7 @@ function App() {
       uiConsole("provider not initialized yet");
       return;
     }
+    uiConsole("Sending Transaction...");
     const rpc = new RPC(provider);
     const receipt = await rpc.sendTransaction();
     uiConsole(receipt);
@@ -177,22 +142,24 @@ function App() {
     uiConsole(signedMessage);
   };
 
-  function uiConsole(...args: any[]): void {
-    const el = document.querySelector("#console>p");
-    if (el) {
-      el.innerHTML = JSON.stringify(args || {}, null, 2);
-    }
-  }
-
   const getPrivateKey = async () => {
     if (!provider) {
       uiConsole("provider not initialized yet");
       return;
     }
-    const rpc = new RPC(provider);
-    const privateKey = await rpc.getPrivateKey();
+    const privateKey = await provider.request({
+      method: "eth_private_key",
+    });
     uiConsole(privateKey);
   };
+
+  function uiConsole(...args: any[]): void {
+    const el = document.querySelector("#console>p");
+    if (el) {
+      el.innerHTML = JSON.stringify(args || {}, null, 2);
+      console.log(...args);
+    }
+  }
 
   const loggedInView = (
     <>
@@ -251,7 +218,7 @@ function App() {
 
   const unloggedInView = (
     <button onClick={login} className="card">
-      Login
+      Login with Auth0
     </button>
   );
 
